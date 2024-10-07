@@ -1,8 +1,14 @@
 {
+  "name": "google-sheets-i18n",
+  "version": "1.0.0",
+  "description": "Extract translations from Google Sheets and generate JSON files",
+  "main": "index.js",
   "dependencies": {
     "google-auth-library": "^9.14.1",
-    "google-spreadsheet": "^4.1.4"
+    "google-spreadsheet": "^4.1.4",
+    "commander": "^12.1.0"
   },
+  "author": "Arda Satata",
   "scripts": {
     "start": "node ."
   }

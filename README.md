@@ -10,8 +10,10 @@ Sample sheets [link](https://docs.google.com/spreadsheets/d/1FMLCsDFYrC9FIV0xcOg
 3. Invite service account email as `Editor` / `Viewer` to the sheets
 <img src="./img/share.png" width="240" />
 
-4. on `index.js` change `DOCUMENT_ID` to your spreadsheet id (check URL) eg: `1FMLCsDFYrC9FIV0xcOgb-6eafVYr-R77ziL5F1v9WcU`
-5. `yarn start` to see it in action
+```
+node cli.js -i <your-spreadsheet-id> -s ./service-account.json -o ./translations -l en jp
+```
+4. Run ` node cli.js -i 1FMLCsDFYrC9FIV0xcOgb-6eafVYr-R77ziL5F1v9WcU -s ./service-account.json -o ./results -l en jp`
 
 ### Library used
 
