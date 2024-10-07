@@ -1,77 +1,74 @@
 const { GoogleSpreadsheet } = require("google-spreadsheet");
-const secret = require("./service-account.json");
-const jwt = require("./utils/jwt")
-const isEmpty = require('./utils/isEmpty')
 const fs = require("fs");
+const path = require('path'); // Added for path resolution
+const isEmpty = require('./utils/isEmpty');
+const jwt = require('./utils/jwt');
 
-const DOCUMENT_ID = "1FMLCsDFYrC9FIV0xcOgb-6eafVYr-R77ziL5F1v9WcU"
-const TRANSLATION_PATH = "./results/"
+// Function to generate translations for a specific language
+async function generateLang(doc, lang) {
+  await doc.loadInfo();
+  const sheets = doc.sheetsByIndex;
 
-// Based on spreadsheet order
-const LANG_CODE = ['en', 'jp']
+  let resultLang = {};
+  await Promise.all(
+    sheets.map(async (sheet) => {
+      const key = sheet.title;
+      const rows = await sheet.getRows({ limit: sheet.rowCount });
+      const colTitles = sheet.headerValues;
+      const rowKey = colTitles[0];
+      let resultTranslationKey = {};
+      rows.map((row) => {
+        const key = row.get(rowKey);
+        const value = row.get(lang);
 
-console.log("### Sync translation from google sheet")
-console.log("Document ID : ", DOCUMENT_ID)
-console.log("Translation path : ", TRANSLATION_PATH)
+        if (!isEmpty(key) && !isEmpty(value)) {
+          resultTranslationKey = {
+            ...resultTranslationKey,
+            [key]: value,
+          };
+        }
+      });
+      resultLang = {
+        ...resultLang,
+        [key]: resultTranslationKey,
+      };
+    })
+  );
+  return resultLang;
+}
 
-const doc = new GoogleSpreadsheet(
-  DOCUMENT_ID,
-  jwt(secret.client_email, secret.private_key)
-);
+// Function to iterate through languages and generate translations
+async function translateFromSheets(spreadsheetId, serviceAccountPath, outputPath, langs) {
+  const secret = require(path.resolve(serviceAccountPath)); // Resolve path
+  const doc = new GoogleSpreadsheet(
+    spreadsheetId,
+    jwt(secret.client_email, secret.private_key)
+  );
 
-const write = (data) => {
-  Object.keys(data).forEach((key) => {
-    fs.writeFile(
-      `${TRANSLATION_PATH}${key}.json`,
-      JSON.stringify(data[key], null, 2),
+  const results = {};
+  await Promise.all(
+    langs.map(async (lang) => {
+      results[lang] = await generateLang(doc, lang);
+    })
+  );
+
+  // Write translations to JSON files
+  Object.keys(results).forEach((key) => {
+    const filePath = path.join(outputPath, `${key}.json`); // Construct file path
+    fs.writeFileSync( // Use writeFileSync for synchronous writing
+      filePath,
+      JSON.stringify(results[key], null, 2),
       (err) => {
         if (err) {
-          console.error(err);
+          console.error(`Error writing file ${filePath}:`, err);
+        } else {
+          console.log(`Translations saved to: ${filePath}`);
         }
       }
     );
   });
+}
+
+module.exports = {
+  translateFromSheets,
 };
-
-const generateLang = async (lang) => {
-  await doc.loadInfo()
-  const sheets = doc.sheetsByIndex
-
-  let resultLang = {};
-  await Promise.all(sheets.map(async sheet => {
-    const key = sheet.title
-    const rows = await sheet.getRows({ limit: sheet.rowCount });
-    const colTitles = sheet.headerValues;
-    const rowKey = colTitles[0]
-    let resultTranslationKey = {}
-    rows.map(row => {
-      const key = row.get(rowKey)
-      const value = row.get(lang)
-
-      if(!isEmpty(key) && !isEmpty(value)){
-        resultTranslationKey = {
-          ...resultTranslationKey,
-          [key] : value
-        }
-      }
-    })
-    resultLang = {
-      ...resultLang,
-      [key]: resultTranslationKey
-    }
-  }))
-  return resultLang
-}
-
-const iterateLang = async (langs = [], generateLang)=> {
-  const results = {}
-  await Promise.all(langs.map(async lang => {
-    results[lang] = await generateLang(lang)
-  }))
-  return results
-}
-
-iterateLang(LANG_CODE, generateLang)
-  .then((data) => write(data))
-  .catch((err) => console.log("ERROR!", err))
-  .finally(() => console.log(`### JSON generated, please check ${TRANSLATION_PATH}`));
